@@ -68,12 +68,14 @@ if ($ok && ($loginhint !== $USER->id)) {
     $ok = false;
     $error = 'access_denied';
 }
-if ($ok) {
+
+// If we're unable to load up config; we cannot trust the redirect uri for POSTing to.
+if (empty($config)) {
+    throw new moodle_exception('invalidrequest', 'error');
+} else {
     $uris = array_map("trim", explode("\n", $config->lti_redirectionuris));
-    $ok = in_array($redirecturi, $uris);
-    if (!$ok) {
-        $error = 'invalid_request';
-        $desc = 'Unregistered redirect_uri ' . $redirecturi;
+    if (!in_array($redirecturi, $uris)) {
+        throw new moodle_exception('invalidrequest', 'error');
     }
 }
 if ($ok) {
@@ -120,7 +122,7 @@ if ($ok) {
         $title = base64_decode($titleb64);
         $text = base64_decode($textb64);
         $request = lti_build_content_item_selection_request($typeid, $course, $returnurl, $title, $text,
-                                                            [], [], false, false, false, false, false, $nonce);
+                                                            [], [], false, true, false, false, false, $nonce);
         $endpoint = $request->url;
         $params = $request->params;
     }
