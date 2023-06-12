@@ -122,7 +122,9 @@ class qtype_multianswer_renderer extends qtype_renderer {
         } else if ($subtype == 'subquestion_replacement') {
             return html_writer::div(
                 get_string('missingsubquestion', 'qtype_multianswer'),
-                'notifyproblem'
+                '',
+                array('style' => '
+                color: #A30000;')
             );
         } else {
             throw new coding_exception('Unexpected subquestion type.', $subq);
