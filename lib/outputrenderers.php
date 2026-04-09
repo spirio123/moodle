@@ -129,7 +129,10 @@ class renderer_base {
                 // Don't allow the JavaScript helper to be executed from within another
                 // helper. If it's allowed it can be used by users to inject malicious
                 // JS into the page.
-                'blacklistednestedhelpers' => ['js']));
+                'blacklistednestedhelpers' => ['js'],
+                // Disable lambda rendering - content in helpers is already rendered, no need to render it again.
+                'disable_lambda_rendering' => true,
+            ));
 
         }
 
@@ -872,13 +875,15 @@ class core_renderer extends renderer_base {
                     html_writer::link($purgeurl, get_string('purgecaches', 'admin')) . '</div>';
         }
         if (!empty($CFG->debugvalidators)) {
-            // NOTE: this is not a nice hack, $this->page->url is not always accurate and
-            // $FULLME neither, it is not a bug if it fails. --skodak.
-            $output .= '<div class="validators"><ul class="list-unstyled ml-1">
-              <li><a href="http://validator.w3.org/check?verbose=1&amp;ss=1&amp;uri=' . urlencode(qualified_me()) . '">Validate HTML</a></li>
-              <li><a href="http://www.contentquality.com/mynewtester/cynthia.exe?rptmode=-1&amp;url1=' . urlencode(qualified_me()) . '">Section 508 Check</a></li>
-              <li><a href="http://www.contentquality.com/mynewtester/cynthia.exe?rptmode=0&amp;warnp2n3e=1&amp;url1=' . urlencode(qualified_me()) . '">WCAG 1 (2,3) Check</a></li>
-            </ul></div>';
+            $siteurl = qualified_me();
+            $nuurl = new moodle_url('https://validator.w3.org/nu/', ['doc' => $siteurl, 'showsource' => 'yes']);
+            $waveurl = new moodle_url('https://wave.webaim.org/report#/' . urlencode($siteurl));
+            $validatorlinks = [
+                html_writer::link($nuurl, get_string('validatehtml')),
+                html_writer::link($waveurl, get_string('wcagcheck'))
+            ];
+            $validatorlinkslist = html_writer::alist($validatorlinks, ['class' => 'list-unstyled ml-1']);
+            $output .= html_writer::div($validatorlinkslist, 'validators');
         }
         return $output;
     }

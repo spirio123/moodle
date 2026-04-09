@@ -343,7 +343,11 @@ class helper {
         $core = $factory->get_core();
 
         // When there is a logged in user, her information will be passed to the player. It will be used for tracking.
-        $usersettings = isloggedin() ? ['name' => $USER->username, 'mail' => $USER->email] : [];
+        $usersettings = [];
+        if (isloggedin()) {
+            $usersettings['name'] = fullname($USER, has_capability('moodle/site:viewfullnames', $systemcontext));
+            $usersettings['mail'] = $USER->email;
+        }
         $settings = array(
             'baseUrl' => $basepath,
             'url' => "{$basepath}pluginfile.php/{$systemcontext->instanceid}/core_h5p",
@@ -421,6 +425,8 @@ class helper {
      * @return array The JS array converted to PHP array.
      */
     public static function parse_js_array(string $jscontent): array {
+        // Convert all line-endings to UNIX format first.
+        $jscontent = str_replace(array("\r\n", "\r"), "\n", $jscontent);
         $jsarray = preg_split('/,\n\s+/', substr($jscontent, 0, -1));
         $jsarray = preg_replace('~{?\\n~', '', $jsarray);
 

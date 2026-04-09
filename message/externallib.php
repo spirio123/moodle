@@ -4111,7 +4111,7 @@ class core_message_external extends external_api {
         return new external_function_parameters(
             array(
                 'userid' => new external_value(PARAM_INT, 'id of the user, 0 for current user', VALUE_REQUIRED),
-                'name' => new external_value(PARAM_TEXT, 'The name of the message processor'),
+                'name' => new external_value(PARAM_SAFEDIR, 'The name of the message processor'),
                 'formvalues' => new external_multiple_structure(
                     new external_single_structure(
                         array(
@@ -4187,7 +4187,7 @@ class core_message_external extends external_api {
         return new external_function_parameters(
             array(
                 'userid' => new external_value(PARAM_INT, 'id of the user, 0 for current user'),
-                'name' => new external_value(PARAM_TEXT, 'The name of the message processor', VALUE_REQUIRED),
+                'name' => new external_value(PARAM_SAFEDIR, 'The name of the message processor', VALUE_REQUIRED),
             )
         );
     }
@@ -4858,13 +4858,13 @@ class core_message_external extends external_api {
      * Deletes a message for all users
      *
      * @param  int $messageid the message id
-     * @param  int $userid the user id of who we want to delete the message for all users
+     * @param  int $userid the user id of who we want to delete the message for all users, is no longer used.
      * @return external_description
      * @throws moodle_exception
      * @since 3.7
      */
     public static function delete_message_for_all_users(int $messageid, int $userid) {
-        global $CFG;
+        global $CFG, $USER;
 
         // Check if private messaging between users is allowed.
         if (empty($CFG->messaging)) {
@@ -4882,11 +4882,10 @@ class core_message_external extends external_api {
         $context = context_system::instance();
         self::validate_context($context);
 
-        $user = core_user::get_user($params['userid'], '*', MUST_EXIST);
-        core_user::require_active_user($user);
+        core_user::require_active_user($USER);
 
         // Checks if a user can delete a message for all users.
-        if (core_message\api::can_delete_message_for_all_users($user->id, $params['messageid'])) {
+        if (core_message\api::can_delete_message_for_all_users($USER->id, $params['messageid'])) {
             \core_message\api::delete_message_for_all_users($params['messageid']);
         } else {
             throw new moodle_exception('You do not have permission to delete this message for everyone.');

@@ -36,7 +36,15 @@ require_once(__DIR__.'/locallib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class repository_url extends repository {
+    /** @var int Maximum time of recursion. */
+    const MAX_RECURSION_TIME = 5;
+    /** @var int Maximum number of CSS imports. */
+    const MAX_CSS_IMPORTS = 10;
+    /** @var int CSS import counter. */
+    var $cssimportcounter = 0;
     var $processedfiles = array();
+    /** @var int Recursion counter. */
+    var $recursioncounter = 0;
 
     /**
      * @param int $repositoryid
@@ -127,7 +135,16 @@ EOD;
             $url = htmlspecialchars_decode(url_to_absolute($baseurl, $relativeurl));
         }
         if (in_array($url, $this->processedfiles)) {
-            // avoid endless recursion
+            // Avoid endless recursion for the same URL with same parameters.
+            return;
+        }
+        // Remove the query string and anchors before check.
+        $recursioncheckurl = (new moodle_url($url))->out_omit_querystring();
+        if (in_array($recursioncheckurl, $this->processedfiles)) {
+            $this->recursioncounter++;
+        }
+        if ($this->recursioncounter >= self::MAX_RECURSION_TIME) {
+            // Avoid endless recursion for the same URL with different parameters.
             return;
         }
         $this->processedfiles[] = $url;
@@ -187,6 +204,11 @@ EOD;
                 }
                 if (!empty($urls['import'])) {
                     foreach ($urls['import'] as $cssurl) {
+                        // Limit the number of CSS imports to avoid infinite imports.
+                        if ($this->cssimportcounter >= self::MAX_CSS_IMPORTS) {
+                            return;
+                        }
+                        $this->cssimportcounter++;
                         $this->parse_file($info['url'], $cssurl, $list);
                     }
                 }

@@ -29,7 +29,7 @@ defined('MOODLE_INTERNAL') || die;
 use core_course\external\course_summary_exporter;
 
 require_once("$CFG->libdir/externallib.php");
-require_once("lib.php");
+require_once(__DIR__ . "/lib.php");
 
 /**
  * Course external functions
@@ -2130,6 +2130,19 @@ class core_course_external extends external_api {
             $categorycontext = context_coursecat::instance($cat['id']);
             self::validate_context($categorycontext);
             require_capability('moodle/category:manage', $categorycontext);
+
+            // If the category parent is being changed, check for capability in the new parent category
+            if (isset($cat['parent']) && ($cat['parent'] !== $category->parent)) {
+                if ($cat['parent'] == 0) {
+                    // Creating a top level category requires capability in the system context
+                    $parentcontext = context_system::instance();
+                } else {
+                    // Category context
+                    $parentcontext = context_coursecat::instance($cat['parent']);
+                }
+                self::validate_context($parentcontext);
+                require_capability('moodle/category:manage', $parentcontext);
+            }
 
             // this will throw an exception if descriptionformat is not valid
             external_validate_format($cat['descriptionformat']);

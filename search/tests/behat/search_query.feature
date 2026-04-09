@@ -64,10 +64,9 @@ Feature: Use global search interface
 
   @javascript
   Scenario: Search starting from forum context (within option lists course and forum)
-    When I am on "Amphibians" course homepage
-    And I follow "ForumName1"
-    And I search for "frogs" using the header global search box
-    And I expand all fieldsets
+    Given I am on the "ForumName1 toads amphibians" "Forum activity" page
+    When I search for "frogs" using the header global search box
+    Then I expand all fieldsets
     And I should see "Search within"
     And I select "Everywhere you can access" from the "Search within" singleselect
     And I should see "Courses" in the "region-main" "region"
@@ -79,17 +78,17 @@ Feature: Use global search interface
   @javascript
   Scenario: Check that groups option in search form appears when intended
     # Switch to mocked Solr search because simpledb doesn't support groups.
-    Given the following config values are set as admin:
+    Given solr is installed
+    And the following config values are set as admin:
       | searchengine | solr |
     And the following "groups" exist:
       | name    | course | idnumber |
       | A Group | F1     | G1       |
       | B Group | F1     | G2       |
     And the following "activities" exist:
-      | activity | name    | intro      | course | idnumber | groupmode |
-      | forum    | ForumSG | ForumDesc1 | F1     | FORUM2   | 1         |
-    When I am on "Amphibians" course homepage
-    And I follow "ForumSG"
+      | activity | name    | course | idnumber | groupmode |
+      | forum    | ForumSG | F1     | FORUM2   | 1         |
+    When I am on the ForumSG "Forum activity" page
     And global search expects the query "frogs" and will return:
       | type     | idnumber |
       | activity | PAGE1    |
@@ -101,8 +100,7 @@ Feature: Use global search interface
     And I set the field "Groups" to "A Group"
     And I select "Forum: ForumSG" from the "Search within" singleselect
     And I should see "A Group" in the "region-main" "region"
-    And I am on "Amphibians" course homepage
-    And I follow "ForumName1"
+    And I am on the "ForumName1 toads amphibians" "Forum activity" page
     And global search expects the query "frogs" and will return:
       | type     | idnumber |
       | activity | PAGE1    |

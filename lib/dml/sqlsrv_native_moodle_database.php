@@ -208,21 +208,28 @@ class sqlsrv_native_moodle_database extends moodle_database {
 
         $this->store_settings($dbhost, $dbuser, $dbpass, $dbname, $prefix, $dboptions);
 
+        $options = [
+            'UID' => $this->dbuser,
+            'PWD' => $this->dbpass,
+            'Database' => $this->dbname,
+            'CharacterSet' => 'UTF-8',
+            'MultipleActiveResultSets' => true,
+            'ConnectionPooling' => !empty($this->dboptions['dbpersist']),
+            'ReturnDatesAsStrings' => true,
+        ];
+
         $dbhost = $this->dbhost;
         if (!empty($dboptions['dbport'])) {
             $dbhost .= ',' . $dboptions['dbport'];
         }
 
-        $this->sqlsrv = sqlsrv_connect($dbhost, array
-         (
-          'UID' => $this->dbuser,
-          'PWD' => $this->dbpass,
-          'Database' => $this->dbname,
-          'CharacterSet' => 'UTF-8',
-          'MultipleActiveResultSets' => true,
-          'ConnectionPooling' => !empty($this->dboptions['dbpersist']),
-          'ReturnDatesAsStrings' => true,
-         ));
+        // The sqlsrv_connect() has a lot of connection options to be used.
+        // Users can add any supported options with the 'extrainfo' key in the dboptions.
+        if (isset($this->dboptions['extrainfo'])) {
+            $options = array_merge($options, $this->dboptions['extrainfo']);
+        }
+
+        $this->sqlsrv = sqlsrv_connect($dbhost, $options);
 
         if ($this->sqlsrv === false) {
             $this->sqlsrv = null;
@@ -1406,6 +1413,25 @@ class sqlsrv_native_moodle_database extends moodle_database {
         }
 
         return "$fieldname COLLATE $collation $LIKE $param ESCAPE '$escapechar'";
+    }
+
+    /**
+     * Escape common SQL LIKE special characters like '_' or '%', plus '[' & ']' which are also supported in SQL Server
+     *
+     * Note that '^' and '-' also have meaning within a LIKE, but only when enclosed within square brackets. As this syntax
+     * is not supported on all databases and the brackets are always escaped, we don't need special handling of them
+     *
+     * @param string $text
+     * @param string $escapechar
+     * @return string
+     */
+    public function sql_like_escape($text, $escapechar = '\\') {
+        $text = parent::sql_like_escape($text, $escapechar);
+
+        $text = str_replace('[', $escapechar . '[', $text);
+        $text = str_replace(']', $escapechar . ']', $text);
+
+        return $text;
     }
 
     public function sql_concat() {

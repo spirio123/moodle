@@ -8,38 +8,31 @@ Feature: A teacher checks the grade history report in a course
   Scenario: Check the history report displays results correctly
     Given the following "courses" exist:
       | fullname | shortname | category | groupmode |
-      | Course 1 | C1 | 0 | 1 |
+      | Course 1 | C1        | 0        | 1         |
     And the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | 1 | teacher1@example.com |
-      | teacher2 | Teacher | 2 | teacher2@example.com |
-      | student1 | Student | 1 | student1@example.com |
-      | student2 | Student | 2 | student2@example.com |
+      | username | firstname | lastname | email                |
+      | teacher1 | Teacher   | 1        | teacher1@example.com |
+      | teacher2 | Teacher   | 2        | teacher2@example.com |
+      | student1 | Student   | 1        | student1@example.com |
+      | student2 | Student   | 2        | student2@example.com |
     And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | teacher2 | C1 | editingteacher |
-      | student1 | C1 | student |
-      | student2 | C1 | student |
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
-    And I add a "Assignment" to section "1" and I fill the form with:
-      | Assignment name | The greatest assignment ever |
-      | Description | Write a behat test for Moodle - it's amazing! |
-    And I add a "Assignment" to section "1" and I fill the form with:
-      | Assignment name | Rewarding assignment |
-      | Description | After writing your behat test go grab a beer! |
-    And I navigate to "View > Grader report" in the course gradebook
+      | user     | course | role           |
+      | teacher1 | C1     | editingteacher |
+      | teacher2 | C1     | editingteacher |
+      | student1 | C1     | student        |
+      | student2 | C1     | student        |
+    And the following "activities" exist:
+      | activity | course | name                         |
+      | assign   | C1     | The greatest assignment ever |
+      | assign   | C1     | Rewarding assignment         |
+    And I am on the "Course 1" "grades > Grader report > View" page logged in as "teacher1"
     And I turn editing mode on
     And I give the grade "50.00" to the user "Student 1" for the grade item "The greatest assignment ever"
     And I give the grade "60.00" to the user "Student 1" for the grade item "Rewarding assignment"
     And I give the grade "50.00" to the user "Student 2" for the grade item "The greatest assignment ever"
     And I give the grade "60.00" to the user "Student 2" for the grade item "Rewarding assignment"
     And I press "Save changes"
-    And I log out
-    And I log in as "teacher2"
-    And I am on "Course 1" course homepage
-    And I navigate to "View > Grader report" in the course gradebook
+    And I am on the "Course 1" "grades > Grader report > View" page logged in as "teacher2"
     And I turn editing mode on
     And I give the grade "70.00" to the user "Student 1" for the grade item "The greatest assignment ever"
     And I give the grade "80.00" to the user "Student 1" for the grade item "Rewarding assignment"

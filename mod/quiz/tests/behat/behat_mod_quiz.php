@@ -51,7 +51,7 @@ class behat_mod_quiz extends behat_question_base {
      * @throws Exception with a meaningful error message if the specified page cannot be found.
      */
     protected function resolve_page_url(string $page): moodle_url {
-        switch ($page) {
+        switch (strtolower($page)) {
             default:
                 throw new Exception('Unrecognised quiz page type "' . $page . '."');
         }
@@ -79,40 +79,54 @@ class behat_mod_quiz extends behat_question_base {
     protected function resolve_page_instance_url(string $type, string $identifier): moodle_url {
         global $DB;
 
-        switch ($type) {
-            case 'View':
+        switch (strtolower($type)) {
+            case 'view':
                 return new moodle_url('/mod/quiz/view.php',
                         ['id' => $this->get_cm_by_quiz_name($identifier)->id]);
 
-            case 'Edit':
+            case 'edit':
                 return new moodle_url('/mod/quiz/edit.php',
                         ['cmid' => $this->get_cm_by_quiz_name($identifier)->id]);
 
-            case 'Group overrides':
+            case 'group overrides':
                 return new moodle_url('/mod/quiz/overrides.php',
                     ['cmid' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'group']);
 
-            case 'User overrides':
+            case 'user overrides':
                 return new moodle_url('/mod/quiz/overrides.php',
                     ['cmid' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'user']);
 
-            case 'Grades report':
+            case 'grades report':
                 return new moodle_url('/mod/quiz/report.php',
                     ['id' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'overview']);
 
-            case 'Responses report':
+            case 'responses report':
                 return new moodle_url('/mod/quiz/report.php',
                     ['id' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'responses']);
 
-            case 'Statistics report':
+            case 'statistics report':
                 return new moodle_url('/mod/quiz/report.php',
                     ['id' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'statistics']);
 
-            case 'Manual grading report':
+            case 'manual grading report':
                 return new moodle_url('/mod/quiz/report.php',
                         ['id' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'grading']);
-
-            case 'Attempt review':
+            case 'attempt view':
+                list($quizname, $username, $attemptno, $pageno) = explode(' > ', $identifier);
+                $pageno = intval($pageno);
+                $pageno = $pageno > 0 ? $pageno - 1 : 0;
+                $attemptno = (int) trim(str_replace ('Attempt', '', $attemptno));
+                $quiz = $this->get_quiz_by_name($quizname);
+                $quizcm = get_coursemodule_from_instance('quiz', $quiz->id, $quiz->course);
+                $user = $DB->get_record('user', ['username' => $username], '*', MUST_EXIST);
+                $attempt = $DB->get_record('quiz_attempts',
+                    ['quiz' => $quiz->id, 'userid' => $user->id, 'attempt' => $attemptno], '*', MUST_EXIST);
+                return new moodle_url('/mod/quiz/attempt.php', [
+                    'attempt' => $attempt->id,
+                    'cmid' => $quizcm->id,
+                    'page' => $pageno
+                ]);
+            case 'attempt review':
                 if (substr_count($identifier, ' > ') !== 2) {
                     throw new coding_exception('For "attempt review", name must be ' .
                             '"{Quiz name} > {username} > Attempt {attemptnumber}", ' .
@@ -364,14 +378,12 @@ class behat_mod_quiz extends behat_question_base {
      */
     public function i_add_question_to_the_quiz_with($questiontype, $quizname, TableNode $questiondata) {
         $quizname = $this->escape($quizname);
-        $editquiz = $this->escape(get_string('editquiz', 'quiz'));
-        $quizadmin = $this->escape(get_string('pluginadministration', 'quiz'));
         $addaquestion = $this->escape(get_string('addaquestion', 'quiz'));
 
-        $this->execute('behat_general::click_link', $quizname);
-
-        $this->execute("behat_navigation::i_navigate_to_in_current_page_administration",
-                $quizadmin . ' > ' . $editquiz);
+        $this->execute('behat_navigation::i_am_on_page_instance', [
+            $quizname,
+            'mod_quiz > Edit',
+        ]);
 
         if ($this->running_javascript()) {
             $this->execute("behat_action_menu::i_open_the_action_menu_in", array('.slots', "css_element"));
@@ -530,6 +542,8 @@ class behat_mod_quiz extends behat_question_base {
 
     /**
      * Check the add or remove page-break link after a particular question contains the given parameters in its url.
+     *
+     * @When /^the "(Add|Remove)" page break link after question "(?P<question_name>(?:[^"]|\\")*) should contain:$/
      * @When /^the "(Add|Remove)" page break link after question "(?P<question_name>(?:[^"]|\\")*) should contain:"$/
      * @param string $addorremoves 'Add' or 'Remove'.
      * @param string $questionname the name of the question before the icon to click.
