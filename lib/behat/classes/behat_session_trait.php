@@ -30,6 +30,7 @@ use Behat\Mink\Exception\ExpectationException;
 use Behat\Mink\Exception\ElementNotFoundException;
 use Behat\Mink\Exception\NoSuchWindowException;
 use Behat\Mink\Session;
+use Behat\Testwork\Hook\Scope\HookScope;
 use Facebook\WebDriver\Exception\ScriptTimeoutException;
 use Facebook\WebDriver\WebDriverBy;
 use Facebook\WebDriver\WebDriverElement;
@@ -221,6 +222,22 @@ trait behat_session_trait {
             'locator' => $locator,
             'container' => $container,
         ];
+    }
+
+    /**
+     * Get a description of the selector and locator to use in an exception message.
+     *
+     * @param string $selector The type of locator
+     * @param mixed $locator The locator text
+     * @return string
+     */
+    protected function get_selector_description(string $selector, $locator): string {
+        if ($selector === 'NodeElement') {
+            $description = $locator->getText();
+            return "'{$description}' {$selector}";
+        }
+
+        return "'{$locator}' {$selector}";
     }
 
     /**
@@ -423,13 +440,12 @@ trait behat_session_trait {
         if ($containerselectortype === 'NodeElement' && is_a($containerelement, NodeElement::class)) {
             // Support a NodeElement being passed in for use in step chaining.
             $containernode = $containerelement;
-            $locatorexceptionmsg = $element;
         } else {
             // Gets the container, it will always be text based.
             $containernode = $this->get_text_selector_node($containerselectortype, $containerelement);
-            $locatorexceptionmsg = $element . '" in the "' . $containerelement. '" "' . $containerselectortype. '"';
         }
 
+        $locatorexceptionmsg = $element . '" in the "' . $this->get_selector_description($containerselectortype, $containerelement);
         $exception = new ElementNotFoundException($this->getSession(), $selectortype, null, $locatorexceptionmsg);
 
         return $this->find($selectortype, $element, $exception, $containernode);
@@ -742,6 +758,8 @@ trait behat_session_trait {
      * @throws ExpectationException
      */
     protected function resize_window($windowsize, $viewport = false) {
+        global $CFG;
+
         // Non JS don't support resize window.
         if (!$this->running_javascript()) {
             return;
@@ -769,6 +787,12 @@ trait behat_session_trait {
                 $width = (int) $size[0];
                 $height = (int) $size[1];
         }
+
+        if (isset($CFG->behat_window_size_modifier) && is_numeric($CFG->behat_window_size_modifier)) {
+            $width *= $CFG->behat_window_size_modifier;
+            $height *= $CFG->behat_window_size_modifier;
+        }
+
         if ($viewport) {
             // When setting viewport size, we set it so that the document width will be exactly
             // as specified, assuming that there is a vertical scrollbar. (In cases where there is
@@ -1022,6 +1046,29 @@ EOF;
     }
 
     /**
+     * Execute a function in a specific behat context.
+     *
+     * For example, to call the 'set_editor_value' function for all editors, you would call:
+     *
+     *     behat_base::execute_in_matching_contexts('editor', 'set_editor_value', ['Some value']);
+     *
+     * This would find all behat contexts whose class name starts with 'behat_editor_' and
+     * call the 'set_editor_value' function on that context.
+     *
+     * @param string $prefix
+     * @param string $method
+     * @param array $params
+     */
+    public static function execute_in_matching_contexts(string $prefix, string $method, array $params): void {
+        $contexts = behat_context_helper::get_prefixed_contexts("behat_{$prefix}_");
+        foreach ($contexts as $context) {
+            if (method_exists($context, $method) && is_callable([$context, $method])) {
+                call_user_func_array([$context, $method], $params);
+            }
+        }
+    }
+
+    /**
      * Get the actual user in the behat session (note $USER does not correspond to the behat session's user).
      * @return mixed
      * @throws coding_exception
@@ -1068,6 +1115,69 @@ EOF;
 
         \core\session\manager::set_user($user);
     }
+
+    /**
+     * Gets the internal moodle context id from the context reference.
+     *
+     * The context reference changes depending on the context
+     * level, it can be the system, a user, a category, a course or
+     * a module.
+     *
+     * @throws Exception
+     * @param string $levelname The context level string introduced by the test writer
+     * @param string $contextref The context reference introduced by the test writer
+     * @return context
+     */
+    public static function get_context(string $levelname, string $contextref): context {
+        global $DB;
+
+        // Getting context levels and names (we will be using the English ones as it is the test site language).
+        $contextlevels = context_helper::get_all_levels();
+        $contextnames = array();
+        foreach ($contextlevels as $level => $classname) {
+            $contextnames[context_helper::get_level_name($level)] = $level;
+        }
+
+        if (empty($contextnames[$levelname])) {
+            throw new Exception('The specified "' . $levelname . '" context level does not exist');
+        }
+        $contextlevel = $contextnames[$levelname];
+
+        // Return it, we don't need to look for other internal ids.
+        if ($contextlevel == CONTEXT_SYSTEM) {
+            return context_system::instance();
+        }
+
+        switch ($contextlevel) {
+
+            case CONTEXT_USER:
+                $instanceid = $DB->get_field('user', 'id', array('username' => $contextref));
+                break;
+
+            case CONTEXT_COURSECAT:
+                $instanceid = $DB->get_field('course_categories', 'id', array('idnumber' => $contextref));
+                break;
+
+            case CONTEXT_COURSE:
+                $instanceid = $DB->get_field('course', 'id', array('shortname' => $contextref));
+                break;
+
+            case CONTEXT_MODULE:
+                $instanceid = $DB->get_field('course_modules', 'id', array('idnumber' => $contextref));
+                break;
+
+            default:
+                break;
+        }
+
+        $contextclass = $contextlevels[$contextlevel];
+        if (!$context = $contextclass::instance($instanceid, IGNORE_MISSING)) {
+            throw new Exception('The specified "' . $contextref . '" context reference does not exist');
+        }
+
+        return $context;
+    }
+
     /**
      * Trigger click on node via javascript instead of actually clicking on it via pointer.
      *
@@ -1373,5 +1483,223 @@ EOF;
         // Use get_real_timeout and multiply by the timeout factor to get the final timeout.
         $timeout = self::get_real_timeout(30) * 1000 * $factor;
         $driver->getWebDriver()->getCommandExecutor()->setRequestTimeout($timeout);
+    }
+
+    /**
+     * Get the course category id from an identifier.
+     *
+     * The category idnumber, and name are checked.
+     *
+     * @param string $identifier
+     * @return int|null
+     */
+    protected function get_category_id(string $identifier): ?int {
+        global $DB;
+
+        $sql = <<<EOF
+    SELECT id
+      FROM {course_categories}
+     WHERE idnumber = :idnumber
+        OR name = :name
+EOF;
+
+        $result = $DB->get_field_sql($sql, [
+            'idnumber' => $identifier,
+            'name' => $identifier,
+        ]);
+
+        return $result ?: null;
+    }
+
+    /**
+     * Get the course id from an identifier.
+     *
+     * The course idnumber, shortname, and fullname are checked.
+     *
+     * @param string $identifier
+     * @return int|null
+     */
+    protected function get_course_id(string $identifier): ?int {
+        global $DB;
+
+        $sql = <<<EOF
+    SELECT id
+      FROM {course}
+     WHERE idnumber = :idnumber
+        OR shortname = :shortname
+        OR fullname = :fullname
+EOF;
+
+        $result = $DB->get_field_sql($sql, [
+            'idnumber' => $identifier,
+            'shortname' => $identifier,
+            'fullname' => $identifier,
+        ]);
+
+        return $result ?: null;
+    }
+
+    /**
+     * Get the activity course module id from its idnumber.
+     *
+     * Note: Only idnumber is supported here, not name at this time.
+     *
+     * @param string $identifier
+     * @return cm_info|null
+     */
+    protected function get_course_module_for_identifier(string $identifier): ?cm_info {
+        global $DB;
+
+        $coursetable = new \core\dml\table('course', 'c', 'c');
+        $courseselect = $coursetable->get_field_select();
+        $coursefrom = $coursetable->get_from_sql();
+
+        $cmtable = new \core\dml\table('course_modules', 'cm', 'cm');
+        $cmfrom = $cmtable->get_from_sql();
+
+        $sql = <<<EOF
+    SELECT {$courseselect}, cm.id as cmid
+      FROM {$cmfrom}
+INNER JOIN {$coursefrom} ON c.id = cm.course
+     WHERE cm.idnumber = :idnumber
+EOF;
+
+        $result = $DB->get_record_sql($sql, [
+            'idnumber' => $identifier,
+        ]);
+
+        if ($result) {
+            $course = $coursetable->extract_from_result($result);
+            return get_fast_modinfo($course)->get_cm($result->cmid);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get a coursemodule from an activity name or idnumber.
+     *
+     * @param string $activity
+     * @param string $identifier
+     * @return cm_info
+     */
+    protected function get_cm_by_activity_name(string $activity, string $identifier): cm_info {
+        global $DB;
+
+        $coursetable = new \core\dml\table('course', 'c', 'c');
+        $courseselect = $coursetable->get_field_select();
+        $coursefrom = $coursetable->get_from_sql();
+
+        $cmtable = new \core\dml\table('course_modules', 'cm', 'cm');
+        $cmfrom = $cmtable->get_from_sql();
+
+        $acttable = new \core\dml\table($activity, 'a', 'a');
+        $actselect = $acttable->get_field_select();
+        $actfrom = $acttable->get_from_sql();
+
+        $sql = <<<EOF
+    SELECT cm.id as cmid, {$courseselect}, {$actselect}
+      FROM {$cmfrom}
+INNER JOIN {$coursefrom} ON c.id = cm.course
+INNER JOIN {modules} m ON m.id = cm.module AND m.name = :modname
+INNER JOIN {$actfrom} ON cm.instance = a.id
+     WHERE cm.idnumber = :idnumber OR a.name = :name
+EOF;
+
+        $result = $DB->get_record_sql($sql, [
+            'modname' => $activity,
+            'idnumber' => $identifier,
+            'name' => $identifier,
+        ], MUST_EXIST);
+
+        $course = $coursetable->extract_from_result($result);
+        $instancedata = $acttable->extract_from_result($result);
+
+        return get_fast_modinfo($course)->get_cm($result->cmid);
+    }
+
+    /**
+     * Check whether any of the tags availble to the current scope match using the given callable.
+     *
+     * This function is typically called from within a Behat Hook, such as BeforeFeature, BeforeScenario, AfterStep, etc.
+     *
+     * The callable is used as the second argument to `array_filter()`, and is passed a single string argument for each of the
+     * tags available in the scope.
+     *
+     * The tags passed will include:
+     * - For a FeatureScope, the Feature tags only
+     * - For a ScenarioScope, the Feature and Scenario tags
+     * - For a StepScope, the Feature, Scenario, and Step tags
+     *
+     * An example usage may be:
+     *
+     *    // Note: phpDoc beforeStep attribution not shown.
+     *    public function before_step(StepScope $scope) {
+     *        $callback = function (string $tag): bool {
+     *            return $tag === 'editor_atto' || substr($tag, 0, 5) === 'atto_';
+     *        };
+     *
+     *        if (!self::scope_tags_match($scope, $callback)) {
+     *            return;
+     *        }
+     *
+     *        // Do something here.
+     *    }
+     *
+     * @param HookScope $scope The scope to check
+     * @param callable $callback The callable to use to check the scope
+     * @return boolean Whether any of the scope tags match
+     */
+    public static function scope_tags_match(HookScope $scope, callable $callback): bool {
+        $tags = [];
+
+        if (is_subclass_of($scope, \Behat\Behat\Hook\Scope\FeatureScope::class)) {
+            $tags = $scope->getFeature()->getTags();
+        }
+
+        if (is_subclass_of($scope, \Behat\Behat\Hook\Scope\ScenarioScope::class)) {
+            $tags = array_merge(
+                $scope->getFeature()->getTags(),
+                $scope->getScenario()->getTags()
+            );
+        }
+
+        if (is_subclass_of($scope, \Behat\Behat\Hook\Scope\StepScope::class)) {
+            $tags = array_merge(
+                $scope->getFeature()->getTags(),
+                $scope->getScenario()->getTags(),
+                $scope->getStep()->getTags()
+            );
+        }
+
+        $matches = array_filter($tags, $callback);
+
+        return !empty($matches);
+    }
+
+    /**
+     * Get the user id from an identifier.
+     *
+     * The user username and email fields are checked.
+     *
+     * @param string $identifier The user's username or email.
+     * @return int|null The user id or null if not found.
+     */
+    protected function get_user_id_by_identifier(string $identifier): ?int {
+        global $DB;
+
+        $sql = <<<EOF
+    SELECT id
+      FROM {user}
+     WHERE username = :username
+        OR email = :email
+EOF;
+
+        $result = $DB->get_field_sql($sql, [
+            'username' => $identifier,
+            'email' => $identifier,
+        ]);
+
+        return $result ?: null;
     }
 }

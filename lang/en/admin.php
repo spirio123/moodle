@@ -298,8 +298,8 @@ $string['configmycoursesperpage'] = 'Maximum number of courses to display in any
 $string['configmymoodleredirect'] = 'This setting forces redirects to /my on login for non-admins and replaces the top level site navigation with /my';
 $string['configmypagelocked'] = 'This setting prevents the default page from being edited by any non-admins';
 $string['confignavcourselimit'] = 'Limits the number of courses shown to the user in the navigation.';
-$string['confignavshowallcourses'] = 'This setting determines whether users who are enrolled in courses can see Courses (listing all courses) in the navigation, in addition to My Courses (listing courses in which they are enrolled).';
-$string['confignavshowcategories'] = 'Show course categories in the navigation bar and navigation blocks. This does not occur with courses the user is currently enrolled in, they will still be listed under mycourses without categories.';
+$string['confignavshowallcourses'] = 'This setting determines whether users who are enrolled in courses can see Courses (listing all courses) in the navigation, in addition to My courses (listing courses in which they are enrolled).';
+$string['confignavshowcategories'] = 'Show course categories in the navigation bar and navigation blocks. This does not occur with courses the user is currently enrolled in; they will still be listed under My courses without categories.';
 $string['confignoreplyaddress'] = 'Emails are sometimes sent out on behalf of a user (eg forum posts). The email address you specify here will be used as the "From" address in those cases when the recipients should not be able to reply directly to the user (eg when a user chooses to keep their address private). This setting will also be used as the envelope sender when sending email.';
 $string['confignotifyloginfailures'] = 'Send login failure notification messages to these selected users. This requires an internal logstore (eg Standard Logstore) to be enabled.';
 $string['confignotifyloginthreshold'] = 'If notifications about failed logins are active, how many failed login attempts by one user or one IP address is it worth notifying about?';
@@ -379,7 +379,7 @@ For example:  standard,orangewhite.';
 $string['configtimezone'] = 'This is the default timezone for displaying dates - each user can override this setting in their profile. Cron tasks and other server settings are specified in this timezone. You should change the setting if it shows as "Invalid timezone"';
 $string['configuseblogassociations'] = 'Should users be able to organize their blog by associating entries with courses and course modules?';
 $string['configuseexternalyui'] = 'Instead of using local files, use online files available on Yahoo&#145;s servers. WARNING: This requires an internet connection, or no AJAX will work on your site. This setting is not compatible with sites using https.';
-$string['configusesitenameforsitepages'] = 'If enabled the site\'s shortname will be used for the site pages node in the navigation rather than the string \'Site pages\'';
+$string['configusesitenameforsitepages'] = 'If enabled the site\'s short name will be used for the site pages node in the navigation rather than the string \'Site pages\'.';
 $string['configusetags'] = 'Should tags functionality across the site be enabled?';
 $string['configvariables'] = 'Variables';
 $string['configverifychangedemail'] = 'Enables verification of changed email addresses using allowed and denied email domains settings. If this setting is disabled the domains are enforced only when creating new users.';
@@ -452,6 +452,7 @@ $string['customusermenuitems'] = 'User menu items';
 $string['datarootsecurityerror'] = '<p><strong>SECURITY WARNING!</strong></p><p>Your dataroot directory is in the wrong location and is exposed to the web. This means that all your private files are available to anyone in the world, and some of them could be used by a cracker to obtain unauthorised administrative access to your site!</p>
 <p>You <em>must</em> move dataroot directory ({$a}) to a new location that is not within your public web directory, and update the <code>$CFG->dataroot</code> setting in your config.php accordingly.</p>';
 $string['datarootsecuritywarning'] = 'Your site configuration might not be secure. Please make sure that your dataroot directory ({$a}) is not directly accessible via web.';
+$string['dbprefixtoolong'] = 'Your site\'s database prefix ($CFG->prefix) is too long ({$a->current} characters). The maximum number of characters allowed is {$a->maximum}.';
 $string['dbsessions'] = 'Use database for session information';
 $string['debug'] = 'Debug messages';
 $string['debugall'] = 'ALL: Show all reasonable PHP debug messages';
@@ -659,6 +660,7 @@ $string['checkboxyes'] = 'Yes';
 $string['choosefiletoedit'] = 'Choose file to edit';
 $string['h5pgetcontenttypestask'] = 'Download available H5P content types from h5p.org';
 $string['iconvrequired'] = 'Installing ICONV extension is required.';
+$string['igbinary322buggyversion'] = 'The php-igbinary extension installed on the site can lead to problems when running with PHP 7.2. You are recommended to either upgrade to php-igbinary 3.2.5 or later, or alternatively to upgrade to PHP 7.3 or later.';
 $string['ignore'] = 'Ignore';
 $string['includemoduleuserdata'] = 'Include module user data';
 $string['incompatibleblocks'] = 'Incompatible blocks';
@@ -682,6 +684,7 @@ $string['iplookupinfo'] = 'By default Moodle uses the free online NetGeo (The In
 It is recommended to install local copy of free GeoLite2 City database from MaxMind.<br />
 IP address location is displayed on simple map or using Google Maps. Please note that you need to have a Google account and apply for free Google Maps API key to enable interactive maps.';
 $string['iplookupmaxmindnote'] = 'This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com">https://www.maxmind.com</a>.';
+$string['iscustomadminwarnings'] = 'It has been detected that your site is using a custom admin directory. This feature is no longer supported and will be removed after Moodle 4.2.';
 $string['ishttpswarning'] = 'It has been detected that your site is not secured using HTTPS. It is strongly recommended to migrate your site to HTTPS for increased security and improved integration with other systems.';
 $string['keeptagnamecase'] = 'Keep tag name casing';
 $string['lang'] = 'Default language';
@@ -843,7 +846,7 @@ $string['navshowfrontpagemods_help'] = 'If enabled, front page activities will b
 $string['navshowallcourses'] = 'Show all courses';
 $string['navshowcategories'] = 'Show course categories';
 $string['navshowmycoursecategories'] = 'Show my course categories';
-$string['navshowmycoursecategories_help'] = 'If enabled courses in the users my courses branch will be shown in categories.';
+$string['navshowmycoursecategories_help'] = 'If enabled, courses in the user\'s My courses branch will be shown in categories in the navigation block (Classic-based themes only).';
 $string['navsortmycourseshiddenlast'] = 'Sort my hidden courses last';
 $string['navsortmycourseshiddenlast_help'] = 'If enabled, any hidden courses will be listed after visible courses (for users who can view hidden courses). Otherwise, all courses, regardless of their visibility, will be listed according to the \'Sort my courses\' setting.';
 $string['navsortmycoursessort'] = 'Sort my courses';
@@ -995,7 +998,8 @@ $string['profilesignup'] = 'Display on signup page?';
 $string['profilespecificsettings'] = 'Specific settings';
 $string['profilevisible'] = 'Who is this field visible to?';
 $string['profilevisible_help'] = '* Not visible - For private data only viewable by administrators
-* Visible to user - For private data only viewable by the user and by administrators
+* Visible to user - For private data only viewable by the user and administrators
+* Visible to user, teachers and admins - For private data only viewable by the user, administrators and teachers (on course profile)
 * Visible to everyone';
 $string['profilevisibleall'] = 'Visible to everyone';
 $string['profilevisiblenone'] = 'Not visible';
@@ -1148,6 +1152,8 @@ $string['sessionhandling'] = 'Session handling';
 $string['sessiontimeout'] = 'Timeout';
 $string['settingdependenton'] = 'This setting may be hidden, based on the value of <strong>{$a}</strong>.';
 $string['settingfileuploads'] = 'File uploading is required for normal operation, please enable it in PHP configuration.';
+$string['settingmaxinputvars'] = 'PHP setting max_input_vars is recommended to be at least 5000.';
+$string['settingmaxinputvarsrequired'] = 'PHP setting max_input_vars must be at least 5000.';
 $string['settingmemorylimit'] = 'Insufficient memory detected, please set higher memory limit in PHP settings.';
 $string['settingsafemode'] = 'Moodle is not fully compatible with safe mode, please ask server administrator to turn it off. Running Moodle under safe mode is not supported, please expect various problems if you do so.';
 $string['setupsearchengine'] = 'Setup search engine';
@@ -1175,6 +1181,7 @@ $string['sitepolicyhandlerplugin'] = '{$a->name} ({$a->component})';
 $string['sitepolicyguest'] = 'Site policy URL for guests';
 $string['sitepolicyguest_help'] = 'The URL of the site policy that all guests must see and agree to before accessing the site. Note that this setting will only have an effect if the site policy handler is set to default (core).';
 $string['sitesectionhelp'] = 'If selected, a topic section will be displayed on the site\'s front page.';
+$string['sixtyfourbitsrequired'] = 'It has been detected that your site is not using a 64-bit PHP version. You are required to upgrade your system (operating system, PHP...) before installing this Moodle version.';
 $string['sixtyfourbitswarning'] = 'It has been detected that your site is not using a 64-bit PHP version. It is recommended that you upgrade your site to ensure future compatibility.';
 $string['slasharguments'] = 'Use slash arguments';
 $string['slashargumentswarning'] = 'It is recommended that the use of slash arguments is enabled. In future it will be required. For more details, see the documentation <a href="https://docs.moodle.org/en/admin/environment/slasharguments">Using slash arguments</a>.';
@@ -1341,12 +1348,14 @@ $string['unsupporteddbfilepertable'] = 'For full support of UTF-8 both MySQL and
 $string['unsupporteddblargeprefix'] = 'For full support of UTF-8 both MySQL and MariaDB require you to change your MySQL setting \'innodb_large_prefix\' to \'ON\'. See the documentation for further details.';
 $string['unsupporteddbstorageengine'] = 'The database storage engine being used is no longer supported.';
 $string['unsupporteddbtablerowformat'] = 'Your database has tables using Antelope as the file format. You are recommended to convert the tables to the Barracuda file format. See the documentation <a href="https://docs.moodle.org/en/cli">Administration via command line</a> for details of a tool for converting InnoDB tables to Barracuda.';
-$string['unsupportedphpversion7'] = 'PHP version 7 is not supported.';
-$string['unsupportedphpversion71'] = 'PHP version 7.1 is not supported.';
-$string['unsupportedphpversion72'] = 'PHP version 7.2 is not supported.';
-$string['unsupportedphpversion73'] = 'PHP version 7.3 is not supported.';
-$string['unsupportedphpversion74'] = 'PHP version 7.4 is not supported.';
-$string['unsupportedphpversion80'] = 'PHP version 8.0 is not supported.';
+$string['unsupportedphpversion7'] = 'PHP version 7 and higher are not supported.';
+$string['unsupportedphpversion71'] = 'PHP version 7.1 and higher are not supported.';
+$string['unsupportedphpversion72'] = 'PHP version 7.2 and higher are not supported.';
+$string['unsupportedphpversion73'] = 'PHP version 7.3 and higher are not supported.';
+$string['unsupportedphpversion74'] = 'PHP version 7.4 and higher are not supported.';
+$string['unsupportedphpversion80'] = 'PHP version 8.0 and higher are not supported.';
+$string['unsupportedphpversion81'] = 'PHP version 8.1 and higher are not supported.';
+$string['unsupportedphpversion82'] = 'PHP version 8.2 and higher are not supported.';
 $string['unsuspenduser'] = 'Activate user account';
 $string['updateaccounts'] = 'Update existing accounts';
 $string['updatecomponent'] = 'Update component';
@@ -1448,9 +1457,13 @@ $string['warningiconvbuggy'] = 'Your version of the iconv library does not suppo
 $string['webproxy'] = 'Web proxy';
 $string['webproxyinfo'] = 'Fill in the following options if your Moodle server cannot access the internet directly. Internet access is required for the download of environment data, language packs, RSS feeds, timezones, etc.<br /><em>The PHP cURL extension is highly recommended.</em>';
 $string['xmlrpcrecommended'] = 'The XMLRPC extension is useful for web services and Moodle networking.';
+$string['xmlrpcmaharaenabled'] = 'It has been detected that the Mahara ePortfolio is enabled on your site. This feature relies on the PHP XML-RPC extension which is no longer maintained by PHP.';
+$string['xmlrpcmnetenabled'] = 'It has been detected that the Moodle Networking is enabled on your site. This feature relies on the PHP XML-RPC extension which is no longer maintained by PHP.';
+$string['xmlrpcwebserviceenabled'] = 'It has been detected that the XML-RPC Web Service protocol is enabled on your site. This feature relies on the PHP XML-RPC extension which is no longer maintained by PHP.';
 $string['yuicomboloading'] = 'YUI combo loading';
 $string['ziprequired'] = 'The Zip PHP extension is now required by Moodle, info-ZIP binaries or PclZip library are not used anymore.';
-
+$string['modassignmentinuse'] = 'Your site is still using the Assignment 2.2 plugin. Before upgrading you must 1) backup any Assignment 2.2 activities that you want to keep and restore them as Assignment activities, and 2) delete all Assignment 2.2 data from the database.';
+$string['modassignmentsubpluginsexist'] = 'Assignment 2.2. subplugins may be present. The mod/assignment folder and all of its subplugins need to be removed before upgrading.';
 
 $string['caching'] = 'Caching';
 $string['cachesettings'] = 'Cache settings';

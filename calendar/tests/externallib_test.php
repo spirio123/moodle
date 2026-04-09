@@ -96,8 +96,22 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         } else {
             $prop->repeat = 1;
         }
+        if (empty($prop->userid)) {
+            if (!empty($userid)) {
+                $prop->userid = $userid;
+            } else {
+                $prop->userid = 0;
+            }
+        }
         if (!isset($prop->courseid)) {
-            $prop->courseid = $SITE->id;
+            // Set a default value of the event's course ID field.
+            if ($type === 'user') {
+                // If it's a user event, course ID should be zero.
+                $prop->courseid = 0;
+            } else {
+                // Otherwise, default to the site ID.
+                $prop->courseid = $SITE->id;
+            }
         }
 
         // Determine event priority.
@@ -197,7 +211,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $record = new stdClass();
         $record->courseid = $course->id;
         $courseevent = $this->create_calendar_event('course', $USER->id, 'course', 3, time(), $record);
-        $userevent = $this->create_calendar_event('user', $USER->id);
+        $userevent = $this->create_calendar_event('user', $user->id);
         $record = new stdClass();
         $record->courseid = $course->id;
         $record->groupid = $group->id;
@@ -384,54 +398,44 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $this->setUser($user);
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be a single user event.
-        $this->assertEquals(1, count($events['events']));
-        // There should be only two events (course and group).
-        $this->assertEquals(2, count($events['warnings']));
+        $this->assertEquals(2, count($events['events'])); // site, user.
+        $this->assertEquals(2, count($events['warnings'])); // course, group.
 
         $role = $DB->get_record('role', array('shortname' => 'student'));
         $this->getDataGenerator()->enrol_user($user->id, $course->id, $role->id);
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be a site and both course events.
-        $this->assertEquals(3, count($events['events']));
-        // There should be a warning related to group event.
-        $this->assertEquals(1, count($events['warnings']));
+        $this->assertEquals(4, count($events['events'])); // site, user, both course events.
+        $this->assertEquals(1, count($events['warnings'])); // group.
 
         $options = array ('siteevents' => true, 'userevents' => true, 'timeend' => time() + HOURSECS);
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be a site and a course event.
-        $this->assertEquals(2, count($events['events']));
-        // There should be a warning related to group event.
-        $this->assertEquals(1, count($events['warnings']));
+        $this->assertEquals(3, count($events['events'])); // site, user, one course event.
+        $this->assertEquals(1, count($events['warnings'])); // group.
 
         groups_add_member($group, $user);
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be a site, group, one course event.
-        $this->assertEquals(3, count($events['events']));
+        $this->assertEquals(4, count($events['events'])); // site, user, group, one course event.
         $this->assertEquals(0, count($events['warnings']));
 
         $paramevents = array ('courseids' => array($course->id), 'groupids' => array($group->id));
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be only site, course and group events.
-        $this->assertEquals(3, count($events['events']));
+        $this->assertEquals(4, count($events['events'])); // site, user, group, one course event.
         $this->assertEquals(0, count($events['warnings']));
 
         $paramevents = array ('groupids' => array($group->id, 23));
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be only site and group events.
-        $this->assertEquals(2, count($events['events']));
+        $this->assertEquals(3, count($events['events'])); // site, user, group.
         $this->assertEquals(1, count($events['warnings']));
 
         $paramevents = array ('courseids' => array(23));
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        // There should be a single site event.
-        $this->assertEquals(1, count($events['events']));
+        $this->assertEquals(2, count($events['events'])); // site, user.
         $this->assertEquals(1, count($events['warnings']));
 
         $paramevents = array ();
@@ -472,7 +476,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
 
-        $this->assertCount(4, $events['events']);
+        $this->assertCount(5, $events['events']);
 
         // Hide the assignment.
         set_coursemodule_visible($assign->cmid, 0);
@@ -483,7 +487,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
         // Expect one less.
-        $this->assertCount(3, $events['events']);
+        $this->assertCount(4, $events['events']);
 
         // Create some category events.
         $this->setAdminUser();
@@ -842,7 +846,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $now = time();
         // Create two events - one for everybody in the course and one only for the first student.
         $event1 = $this->create_calendar_event('Base event', 0, 'due', 0, $now + DAYSECS, $params + ['courseid' => $course->id]);
-        $event2 = $this->create_calendar_event('User event', 0, 'user', 0, $now + 2 * DAYSECS, $params + ['courseid' => 0]);
+        $event2 = $this->create_calendar_event('User event', $user->id, 'due', 0, $now + 2*DAYSECS, $params + ['courseid' => 0]);
 
         // Retrieve course events for the second student - only one "Base event" is returned.
         $this->setUser($user2);
@@ -854,13 +858,14 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $this->assertEquals(0, count($events['warnings']));
         $this->assertEquals('Base event', $events['events'][0]['name']);
 
-        // Retrieve events for the first student.
+        // Retrieve events for the first student - both events are returned.
         $this->setUser($user);
         $events = core_calendar_external::get_calendar_events($paramevents, $options);
         $events = external_api::clean_returnvalue(core_calendar_external::get_calendar_events_returns(), $events);
-        $this->assertEquals(1, count($events['events']));
+        $this->assertEquals(2, count($events['events']));
         $this->assertEquals(0, count($events['warnings']));
         $this->assertEquals('Base event', $events['events'][0]['name']);
+        $this->assertEquals('User event', $events['events'][1]['name']);
 
         // Retrieve events by id as a teacher, 'User event' should be returned since teacher has access to this course.
         $this->setUser($teacher);
@@ -1036,6 +1041,54 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $result = core_calendar_external::get_calendar_action_events_by_timesort(0, null, 0, 20, true);
         $this->assertCount(1, $result->events);
         $this->assertEquals('Lesson 1 closes', $result->events[0]->name);
+    }
+
+    /**
+     * Check that it is possible to get other user's events without the permission.
+     */
+    public function test_get_calendar_action_events_by_timesort_for_other_users() {
+        $this->resetAfterTest();
+        // Create test users.
+        $user1 = $this->getDataGenerator()->create_user(['email' => 'student1@localhost.com']);
+        $user2 = $this->getDataGenerator()->create_user(['email' => 'student2@localhost.com']);
+        // Create test course.
+        $course = $this->getDataGenerator()->create_course();
+        $this->setAdminUser();
+        // Create test activity and make it available only for student2.
+        $lesson = $this->getDataGenerator()->create_module('lesson', [
+                'name' => 'Lesson 1',
+                'course' => $course->id,
+                'available' => time(),
+                'deadline' => (time() + (60 * 60 * 24 * 5)),
+                'availability' => '{"op":"&","c":[{"type":"profile","sf":"email","op":"isequalto","v":"student2@localhost.com"}],"showc":[true]}'
+            ]
+        );
+        // Enrol.
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id);
+
+        // Student2 can see the event.
+        $this->setUser($user2);
+        $result = core_calendar_external::get_calendar_action_events_by_timesort(0, null, 0, 20, true);
+        $this->assertCount(1, $result->events);
+        $this->assertEquals('Lesson 1 closes', $result->events[0]->name);
+
+        // Student1 cannot see the event.
+        $this->setUser($user1);
+        $result = core_calendar_external::get_calendar_action_events_by_timesort(0, null, 0, 20, true);
+        $this->assertEmpty($result->events);
+
+        // Admin, Manager, Teacher can view student2's data.
+        $this->setAdminUser();
+        $result = core_calendar_external::get_calendar_action_events_by_timesort(0, null, 0, 20, true, $user2->id);
+        $this->assertCount(1, $result->events);
+        $this->assertEquals('Lesson 1 closes', $result->events[0]->name);
+
+        // Student1 will see an exception if he/she trying to view student2's data.
+        $this->setUser($user1);
+        $this->expectException(required_capability_exception::class);
+        $this->expectExceptionMessage('error/nopermission');
+        $result = core_calendar_external::get_calendar_action_events_by_timesort(0, null, 0, 20, true, $user2->id);
     }
 
     /**
@@ -1723,7 +1776,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $timedurationuntil->add($interval);
         $formdata = [
             'id' => 0,
-            'userid' => 0,
+            'userid' => $user->id,
             'modulename' => '',
             'instance' => 0,
             'visible' => 1,
@@ -1761,8 +1814,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $this->resetAfterTest(true);
         $this->setUser($user);
 
-        $this->expectException('moodle_exception');
-
+        $this->expectException(moodle_exception::class);
         external_api::clean_returnvalue(
             core_calendar_external::submit_create_update_form_returns(),
             core_calendar_external::submit_create_update_form($querystring)
@@ -1784,7 +1836,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $timedurationuntil->add($interval);
         $formdata = [
             'id' => 0,
-            'userid' => 0,
+            'userid' => $user->id,
             'modulename' => '',
             'instance' => 0,
             'visible' => 1,
@@ -1830,7 +1882,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         );
 
         $event = $result['event'];
-        $this->assertEquals(0, $event['userid']);
+        $this->assertEquals($user->id, $event['userid']);
         $this->assertEquals($formdata['eventtype'], $event['eventtype']);
         $this->assertEquals($formdata['name'], $event['name']);
     }
@@ -1850,7 +1902,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $timedurationuntil->add($interval);
         $formdata = [
             'id' => 0,
-            'userid' => 0,
+            'userid' => $user->id,
             'modulename' => '',
             'instance' => 0,
             'visible' => 1,
@@ -1961,7 +2013,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         );
 
         $event = $result['event'];
-        $this->assertEquals(0, $event['userid']);
+        $this->assertEquals($user->id, $event['userid']);
         $this->assertEquals($formdata['eventtype'], $event['eventtype']);
         $this->assertEquals($formdata['name'], $event['name']);
         $this->assertEquals($formdata['courseid'], $event['course']['id']);
@@ -2049,7 +2101,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $timedurationuntil->add($interval);
         $formdata = [
             'id' => 0,
-            'userid' => 0,
+            'userid' => $user->id,
             'modulename' => '',
             'instance' => 0,
             'visible' => 1,
@@ -2165,7 +2217,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         );
 
         $event = $result['event'];
-        $this->assertEquals(0, $event['userid']);
+        $this->assertEquals($user->id, $event['userid']);
         $this->assertEquals($formdata['eventtype'], $event['eventtype']);
         $this->assertEquals($formdata['name'], $event['name']);
         $this->assertEquals($group->id, $event['groupid']);
@@ -2188,7 +2240,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $timedurationuntil->add($interval);
         $formdata = [
             'id' => 0,
-            'userid' => 0,
+            'userid' => $user->id,
             'modulename' => '',
             'instance' => 0,
             'visible' => 1,
@@ -2239,7 +2291,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         );
 
         $event = $result['event'];
-        $this->assertEquals(0, $event['userid']);
+        $this->assertEquals($user->id, $event['userid']);
         $this->assertEquals($formdata['eventtype'], $event['eventtype']);
         $this->assertEquals($formdata['name'], $event['name']);
         $this->assertEquals($group->id, $event['groupid']);
@@ -2262,7 +2314,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $timedurationuntil->add($interval);
         $formdata = [
             'id' => 0,
-            'userid' => 0,
+            'userid' => $user->id,
             'modulename' => '',
             'instance' => 0,
             'visible' => 1,
@@ -2312,7 +2364,7 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         );
 
         $event = $result['event'];
-        $this->assertEquals(0, $event['userid']);
+        $this->assertEquals($user->id, $event['userid']);
         $this->assertEquals($formdata['eventtype'], $event['eventtype']);
         $this->assertEquals($formdata['name'], $event['name']);
         $this->assertEquals($group->id, $event['groupid']);
@@ -2564,11 +2616,215 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $this->assertEquals($data['event']['id'], $courseevent->id);
         // User not enrolled in the course cannot load the course event.
         $this->setUser($user2);
-        $this->expectException('required_capability_exception');
+        $this->expectException(moodle_exception::class);
         $data = external_api::clean_returnvalue(
             core_calendar_external::get_calendar_event_by_id_returns(),
             core_calendar_external::get_calendar_event_by_id($courseevent->id)
         );
+    }
+
+    /**
+     * User data for testing reading calendar events.
+     *
+     * @return array
+     */
+    public function get_calendar_event_by_id_prevent_read_other_users_events_data_provider(): array {
+        $syscontext = context_system::instance();
+        $managerrole = 'manager';
+        return [
+            [true, false, $syscontext, $managerrole, true],
+            [false, false, $syscontext, $managerrole, false],
+            [false, false, null, null, true],
+            [false, true, null, null, false],
+        ];
+    }
+
+    /**
+     * Prevent user from reading other user's event.
+     *
+     * @covers \core_calendar_external::get_calendar_event_by_id
+     * @dataProvider get_calendar_event_by_id_prevent_read_other_users_events_data_provider
+     *
+     * @param bool          $isadminevent      Is admin's event
+     * @param bool          $isadmin           Is current user admin user
+     * @param null|stdClass $readerrolecontext Reader role context
+     * @param null|string   $readerrolename    Role name
+     * @param bool          $expectexception   Should the test throw exception
+     */
+    public function test_get_calendar_event_by_id_prevent_read_other_users_events(
+            bool $isadminevent, bool $isadmin, ?stdClass $readerrolecontext,
+            ?string $readerrolename, bool $expectexception) {
+        global $USER, $DB;
+
+        $this->resetAfterTest();
+        $generator = $this->getDataGenerator();
+
+        if ($isadminevent) {
+            $this->setAdminUser();
+        } else {
+            $user = $generator->create_user();
+            $this->setUser($user);
+        }
+        $userevent = $this->create_calendar_event('user event', $USER->id, 'user', 0, time());
+        $results = external_api::clean_returnvalue(
+            core_calendar_external::get_calendar_event_by_id_returns(),
+            core_calendar_external::get_calendar_event_by_id($userevent->id)
+        );
+        $event = reset($results);
+        $this->assertEquals($userevent->id, $event['id']);
+
+        if ($isadmin) {
+            $this->setAdminUser();
+        } else {
+            $reader = $generator->create_user();
+            if ($readerrolename && $readerrolecontext) {
+                $managerroleid = $DB->get_field('role', 'id', ['shortname' => $readerrolename]);
+                role_assign($managerroleid, $reader->id, $readerrolecontext->id);
+            }
+            $this->setUser($reader);
+        }
+
+        if ($expectexception) {
+            // Setup if exception is expected for the test.
+            $this->expectException(moodle_exception::class);
+        }
+        external_api::clean_returnvalue(
+            core_calendar_external::get_calendar_event_by_id_returns(),
+            core_calendar_external::get_calendar_event_by_id($userevent->id)
+        );
+    }
+
+    /**
+     * User data for testing editing or deleting calendar events.
+     *
+     * @return array
+     */
+    public function edit_or_delete_other_users_events_data_provider(): array {
+        $syscontext = context_system::instance();
+        $managerrole = 'manager';
+        return [
+            [false, false, $syscontext, $managerrole, false],
+            [false, true, $syscontext, $managerrole, true],
+            [false, false, null, null, true],
+            [true, false, null, null, false],
+        ];
+    }
+
+    /**
+     * Test the behavior of deleting other users' user events.
+     *
+     * @dataProvider edit_or_delete_other_users_events_data_provider
+     * @covers \core_calendar_external::delete_calendar_events
+     * @param bool          $isadmin Whether the current user is admin.
+     * @param bool          $isadminevent Whether it's an admin event or not.
+     * @param stdClass|null $writerrolecontext The reader role context.
+     * @param string|null   $writerrolename The role name.
+     * @param bool          $expectexception Whether the test should throw an exception or not.
+     */
+    public function test_delete_other_users_events(bool $isadmin, bool $isadminevent,
+            ?stdClass $writerrolecontext, ?string $writerrolename, bool $expectexception) {
+        global $DB, $USER;
+
+        $this->resetAfterTest();
+        $generator = $this->getDataGenerator();
+
+        if ($isadminevent) {
+            $this->setAdminUser();
+            $user = $USER;
+        } else {
+            $user = $generator->create_user();
+            $this->setUser($user);
+        }
+        $userevent = $this->create_calendar_event('user event', $user->id, 'user', 0, time());
+
+        if ($isadmin) {
+            $this->setAdminUser();
+        } else {
+            $writer = $generator->create_user();
+            if ($writerrolename && $writerrolecontext) {
+                $managerroleid = $DB->get_field('role', 'id', ['shortname' => $writerrolename]);
+                role_assign($managerroleid, $writer->id, $writerrolecontext->id);
+            }
+            $this->setUser($writer);
+        }
+
+        if ($expectexception) {
+            $this->expectException(moodle_exception::class);
+        }
+        $events = [
+            ['eventid' => $userevent->id, 'repeat' => 0]
+        ];
+        core_calendar_external::delete_calendar_events($events);
+    }
+
+    /**
+     * Test the behavior of editing other users' user events
+     *
+     * @dataProvider edit_or_delete_other_users_events_data_provider
+     * @covers \core_calendar_external::submit_create_update_form
+     * @param bool          $isadmin Whether the current user is admin.
+     * @param bool          $isadminevent Whether it's an admin event or not.
+     * @param stdClass|null $writerrolecontext The reader role context.
+     * @param string|null   $writerrolename The role name.
+     * @param bool          $expectexception Whether the test should throw an exception or not.
+     */
+    public function test_edit_other_users_events(bool $isadmin, bool $isadminevent,
+            ?stdClass $writerrolecontext, ?string $writerrolename, bool $expectexception) {
+        global $DB, $USER;
+
+        $this->resetAfterTest();
+
+        $generator = $this->getDataGenerator();
+        if ($isadminevent) {
+            $this->setAdminUser();
+            $user = $USER;
+        } else {
+            $user = $generator->create_user();
+        }
+
+        $formdata = [
+            'id' => 0,
+            'userid' => $user->id,
+            'modulename' => '',
+            'instance' => 0,
+            'visible' => 1,
+            'eventtype' => 'user',
+            'name' => 'Test',
+            'timestart' => [
+                'day' => 1,
+                'month' => 1,
+                'year' => 2021,
+                'hour' => 1,
+                'minute' => 0,
+            ],
+            'description' => [
+                'text' => 'xxxxx',
+                'format' => 1,
+                'itemid' => 0
+            ],
+            'location' => 'Test',
+            'duration' => 0,
+        ];
+        $formdata = \core_calendar\local\event\forms\create::mock_generate_submit_keys($formdata);
+
+        $querystring = http_build_query($formdata, '', '&');
+
+        if ($isadmin) {
+            $this->setAdminUser();
+        } else {
+            $writer = $generator->create_user();
+            if ($writerrolename && $writerrolecontext) {
+                $managerroleid = $DB->get_field('role', 'id', ['shortname' => $writerrolename]);
+                role_assign($managerroleid, $writer->id, $writerrolecontext->id);
+            }
+            $this->setUser($writer);
+        }
+        $USER->ignoresesskey = true;
+
+        if ($expectexception) {
+            $this->expectException(moodle_exception::class);
+        }
+        core_calendar_external::submit_create_update_form($querystring);
     }
 
     /**
@@ -2584,10 +2840,8 @@ class core_calendar_externallib_testcase extends externallib_advanced_testcase {
         $category = $generator->create_category(['visible' => 0]);
         $name = 'Category Event (category: ' . $category->id . ')';
         $record = new stdClass();
-        $record->eventtype = 'category';
         $record->categoryid = $category->id;
-        $record->userid = 0;
-        $categoryevent = $this->create_calendar_event($name, 0, 'category', 0, time(), $record);
+        $categoryevent = $this->create_calendar_event($name, $USER->id, 'category', 0, time(), $record);
 
         $events = [
             'eventids' => [$categoryevent->id]

@@ -4,20 +4,32 @@ Feature: Award badges
   As an admin
   I need to add criteria to badges in the system
 
+  Background:
+    Given the following "courses" exist:
+      | fullname | shortname | format | enablecompletion |
+      | Course 1 | C1        | topics | 1                |
+    And the following "users" exist:
+      | username | firstname | lastname | email                |
+      | teacher1 | Teacher   | 1        | teacher1@example.com |
+      | student1 | Student   | 1        | student1@example.com |
+      | student2 | Student   | 2        | student2@example.com |
+    And the following "course enrolments" exist:
+      | user     | course | role           |
+      | teacher1 | C1     | editingteacher |
+      | student1 | C1     | student        |
+      | student2 | C1     | student        |
+    And the following "activity" exists:
+      | activity                            | assign                  |
+      | course                              | C1                      |
+      | section                             | 1                       |
+      | name                                | Test assignment name    |
+      | intro                               | Submit your online text |
+      | completion                          | 1                       |
+      | assignsubmission_onlinetext_enabled | 1                       |
+
   @javascript
   Scenario: Award badge on other badges as criteria
-    Given the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | 1 | teacher1@example.com |
-      | student1 | Student | 1 | student1@example.com |
-    And the following "courses" exist:
-      | fullname | shortname | category | groupmode |
-      | Course 1 | C1 | 0 | 1 |
-    And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | student1 | C1 | student |
-    And I log in as "teacher1"
+    Given I log in as "teacher1"
     And I am on "Course 1" course homepage
     # Create course badge 1.
     And I navigate to "Badges > Add a new badge" in current page administration
@@ -127,11 +139,7 @@ Feature: Award badges
 
   @javascript
   Scenario: Award site badge
-    Given the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher | teacher | 1 | teacher1@example.com |
-      | student | student | 1 | student1@example.com |
-    And I log in as "admin"
+    Given I log in as "admin"
     And I navigate to "Badges > Add a new badge" in site administration
     And I set the following fields to these values:
       | Name | Site Badge |
@@ -145,33 +153,21 @@ Feature: Award badges
     And I press "Continue"
     And I follow "Recipients (0)"
     And I press "Award badge"
-    And I set the field "potentialrecipients[]" to "teacher 1 (teacher1@example.com)"
+    And I set the field "potentialrecipients[]" to "Teacher 1 (teacher1@example.com)"
     And I press "Award badge"
-    And I set the field "potentialrecipients[]" to "student 1 (student1@example.com)"
+    And I set the field "potentialrecipients[]" to "Student 1 (student1@example.com)"
     And I press "Award badge"
+    And I navigate to "Badges > Manage badges" in site administration
     When I follow "Site Badge"
     Then I should see "Recipients (2)"
     And I log out
-    And I log in as "student"
+    And I log in as "student1"
     And I follow "Profile" in the user menu
     Then I should see "Site Badge"
 
   @javascript
   Scenario: Award course badge
-    Given the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | 1 | teacher1@example.com |
-      | student1 | Student | 1 | student1@example.com |
-      | student2 | Student | 2 | student2@example.com |
-    And the following "courses" exist:
-      | fullname | shortname | category | groupmode |
-      | Course 1 | C1 | 0 | 1 |
-    And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | student1 | C1 | student |
-      | student2 | C1 | student |
-    And I log in as "teacher1"
+    Given I log in as "teacher1"
     And I am on "Course 1" course homepage
     And I navigate to "Badges > Add a new badge" in current page administration
     And I follow "Add a new badge"
@@ -201,28 +197,7 @@ Feature: Award badges
 
   @javascript
   Scenario: Award badge on activity completion
-    Given the following "courses" exist:
-      | fullname | shortname | category |
-      | Course 1 | C1 | 0 |
-    And the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | Frist | teacher1@example.com |
-      | student1 | Student | First | student1@example.com |
-    And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | student1 | C1 | student |
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I navigate to "Edit settings" in current page administration
-    And I set the following fields to these values:
-      | Enable completion tracking | Yes |
-    And I press "Save and display"
-    And I turn editing mode on
-    And I add a "Assignment" to section "1" and I fill the form with:
-      | Assignment name | Test assignment name |
-      | Description | Submit your online text |
-      | id_completion | 1                     |
+    Given I log in as "teacher1"
     And I am on "Course 1" course homepage
     And I navigate to "Badges > Add a new badge" in current page administration
     And I follow "Add a new badge"
@@ -249,33 +224,19 @@ Feature: Award badges
 
   @javascript
   Scenario: Award badge on course completion
-    Given the following "courses" exist:
-      | fullname | shortname | category |
-      | Course 1 | C1 | 0 |
-    And the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | Frist | teacher1@example.com |
-      | student1 | Student | First | student1@example.com |
-    And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | student1 | C1 | student |
+    Given the following "activity" exists:
+      | activity       | chat          |
+      | course         | C1            |
+      | name           | Music history |
+      | section        | 1             |
+      | completion     | 2             |
+      | completionview | 1             |
     And I log in as "teacher1"
     And I am on "Course 1" course homepage
-    And I navigate to "Edit settings" in current page administration
-    And I set the following fields to these values:
-      | Enable completion tracking | Yes |
-    And I press "Save and display"
-    And I turn editing mode on
-    And I add a "Assignment" to section "1" and I fill the form with:
-      | Assignment name | Test assignment name |
-      | Description | Submit your online text |
-      | assignsubmission_onlinetext_enabled | 1 |
-      | id_completion | 1                     |
     And I navigate to "Course completion" in current page administration
     And I set the field "id_overall_aggregation" to "2"
     And I click on "Condition: Activity completion" "link"
-    And I set the field "Assignment - Test assignment name" to "1"
+    And I set the field "Chat - Music history" to "1"
     And I press "Save changes"
     And I am on "Course 1" course homepage
     And I navigate to "Badges > Add a new badge" in current page administration
@@ -295,8 +256,7 @@ Feature: Award badges
     And I follow "Profile" in the user menu
     And I click on "Course 1" "link" in the "region-main" "region"
     Then I should not see "badges"
-    And I am on "Course 1" course homepage
-    And I click on "Not completed: Test assignment name" "icon"
+    When I am on the "Music history" "chat activity" page
     And I log out
     # Completion cron won't mark the whole course completed unless the
     # individual criteria was marked completed more than a second ago. So
@@ -307,24 +267,12 @@ Feature: Award badges
     # The student should now see their badge.
     And I log in as "student1"
     And I follow "Profile" in the user menu
+    And I click on "Course 1" "link" in the "region-main" "region"
     Then I should see "Course Badge"
 
   @javascript
   Scenario: All of the selected roles can award badges
-    Given the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | 1 | teacher1@example.com |
-      | student1 | Student | 1 | student1@example.com |
-      | student2 | Student | 2 | student2@example.com |
-    And the following "courses" exist:
-      | fullname | shortname | category | groupmode |
-      | Course 1 | C1 | 0 | 1 |
-    And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | student1 | C1 | student |
-      | student2 | C1 | student |
-    And I log in as "teacher1"
+    Given I log in as "teacher1"
     And I am on "Course 1" course homepage
     # Create course badge 1.
     And I navigate to "Badges > Add a new badge" in current page administration
@@ -393,20 +341,7 @@ Feature: Award badges
 
   @javascript
   Scenario: Revoke badge
-    Given the following "users" exist:
-      | username | firstname | lastname | email |
-      | teacher1 | Teacher | 1 | teacher1@example.com |
-      | student1 | Student | 1 | student1@example.com |
-      | student2 | Student | 2 | student2@example.com |
-    And the following "courses" exist:
-      | fullname | shortname | category | groupmode |
-      | Course 1 | C1 | 0 | 1 |
-    And the following "course enrolments" exist:
-      | user | course | role |
-      | teacher1 | C1 | editingteacher |
-      | student1 | C1 | student |
-      | student2 | C1 | student |
-    And I log in as "teacher1"
+    Given I log in as "teacher1"
     And I am on "Course 1" course homepage
     And I navigate to "Badges > Add a new badge" in current page administration
     And I follow "Add a new badge"

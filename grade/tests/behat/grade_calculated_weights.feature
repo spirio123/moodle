@@ -29,10 +29,7 @@ Feature: We can understand the gradebook user report
     And I log in as "admin"
     And I set the following administration settings values:
       | grade_aggregations_visible | Mean of grades,Weighted mean of grades,Simple weighted mean of grades,Mean of grades (with extra credits),Median of grades,Lowest grade,Highest grade,Mode of grades,Natural |
-    And I log out
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I navigate to "View > Grader report" in the course gradebook
+    And I am on the "Course 1" "grades > Grader report > View" page logged in as teacher1
     And I turn editing mode on
     And I give the grade "60.00" to the user "Student 1" for the grade item "EN Test assignment one"
     And I give the grade "20.00" to the user "Student 1" for the grade item "EN Test assignment two"
@@ -57,7 +54,7 @@ Feature: We can understand the gradebook user report
     And I click on "Move" "link" in the "EN Test assignment four" "table_row"
     And I click on "Move to here" "link" in the "//tbody//tr[position()=last()-3]" "xpath_element"
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Mean of grades aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Mean of grades |
@@ -74,7 +71,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 5.83 % |
       | EN Test assignment six | 33.33 % | 30.00 | 2.50 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Weighted mean of grades aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Weighted mean of grades |
@@ -99,7 +96,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 4.67 % |
       | EN Test assignment six | 33.33 % | 30.00 | 2.00 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Simple weighted mean of grades aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Simple weighted mean of grades |
@@ -120,7 +117,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 7.78 % |
       | EN Test assignment six | 33.33 % | 30.00 | 3.33 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Mean of grades (with extra credits) aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Mean of grades (with extra credits) |
@@ -139,7 +136,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 7.78 % |
       | EN Test assignment six | 33.33 % | 30.00 | 3.33 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Median of grades aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Median of grades |
@@ -156,7 +153,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 11.67 % |
       | EN Test assignment six | 33.33 % | 30.00 | 5.00 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Lowest grade aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Lowest grade |
@@ -173,7 +170,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 0.00 % |
       | EN Test assignment six | 33.33 % | 30.00 | 0.00 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Highest grade aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Highest grade |
@@ -190,7 +187,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 0.00 % |
       | EN Test assignment six | 33.33 % | 30.00 | 0.00 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: Mode of grades aggregation
     And I set the following settings for grade item "Course 1":
       | Aggregation | Mode of grades |
@@ -207,7 +204,7 @@ Feature: We can understand the gradebook user report
       | EN Test assignment five | 33.33 % | 70.00 | 0.00 % |
       | EN Test assignment six | 33.33 % | 30.00 | 0.00 % |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: View user report with mixed aggregation methods
     And I set the following settings for grade item "Course 1":
       | Aggregation | Natural |
@@ -230,7 +227,7 @@ Feature: We can understand the gradebook user report
       | EN Sub category totalWeighted mean of grades. | 33.33 % | 36.67 | - |
       | Course total | - | 156.67 | - |
 
-  @javascript
+  @javascript @skip_chrome_zerosize
   Scenario: View user report with natural aggregation
     And I set the following settings for grade item "EN Test assignment three":
       | Extra credit | 1 |

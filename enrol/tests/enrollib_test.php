@@ -1037,6 +1037,59 @@ class core_enrollib_testcase extends advanced_testcase {
     }
 
     /**
+     * Data provider for {@see test_enrol_get_my_courses_by_time}
+     *
+     * @return array
+     */
+    public function enrol_get_my_courses_by_time_provider(): array {
+        return [
+            'No start or end time' =>
+                [null, null, true],
+            'Start time now, no end time' =>
+                [0, null, true],
+            'Start time now, end time in the future' =>
+                [0, MINSECS, true],
+            'Start time in the past, no end time' =>
+                [-MINSECS, null, true],
+            'Start time in the past, end time in the future' =>
+                [-MINSECS, MINSECS, true],
+            'Start time in the past, end time in the past' =>
+                [-DAYSECS, -HOURSECS, false],
+            'Start time in the future' =>
+                [MINSECS, null, false],
+        ];
+    }
+
+    /**
+     * Test that expected course enrolments are returned when they have timestart / timeend specified
+     *
+     * @param int|null $timestartoffset Null for 0, otherwise offset from current time
+     * @param int|null $timeendoffset Null for 0, otherwise offset from current time
+     * @param bool $expectreturn
+     *
+     * @dataProvider enrol_get_my_courses_by_time_provider
+     */
+    public function test_enrol_get_my_courses_by_time(?int $timestartoffset, ?int $timeendoffset, bool $expectreturn): void {
+        $this->resetAfterTest();
+
+        $time = time();
+        $timestart = $timestartoffset === null ? 0 : $time + $timestartoffset;
+        $timeend = $timeendoffset === null ? 0 : $time + $timeendoffset;
+
+        $course = $this->getDataGenerator()->create_course();
+        $user = $this->getDataGenerator()->create_and_enrol($course, 'student', null, 'manual', $timestart, $timeend);
+        $this->setUser($user);
+
+        $courses = enrol_get_my_courses();
+        if ($expectreturn) {
+            $this->assertCount(1, $courses);
+            $this->assertEquals($course->id, reset($courses)->id);
+        } else {
+            $this->assertEmpty($courses);
+        }
+    }
+
+    /**
      * test_course_users
      *
      * @return void
@@ -1067,6 +1120,43 @@ class core_enrollib_testcase extends advanced_testcase {
         $manualplugin->update_user_enrol($manualinstance, $user1->id, ENROL_USER_SUSPENDED);
         $this->assertCount(2, enrol_get_course_users($course1->id, false));
         $this->assertCount(1, enrol_get_course_users($course1->id, true));
+    }
+
+    /**
+     * test_course_users in groups
+     *
+     * @covers \enrol_get_course_users()
+     * @return void
+     */
+    public function test_course_users_in_groups() {
+        $this->resetAfterTest();
+
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $user3 = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $group1 = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
+        $group2 = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
+
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user3->id, $course->id);
+
+        $this->getDataGenerator()->create_group_member(['groupid' => $group1->id, 'userid' => $user1->id]);
+        $this->getDataGenerator()->create_group_member(['groupid' => $group2->id, 'userid' => $user1->id]);
+        $this->getDataGenerator()->create_group_member(['groupid' => $group2->id, 'userid' => $user2->id]);
+
+        $this->assertCount(3, enrol_get_course_users($course->id));
+        $this->assertCount(1, enrol_get_course_users($course->id, false, [], [], [$group1->id]));
+        $this->assertCount(2, enrol_get_course_users($course->id, false, [], [], [$group2->id]));
+
+        $instances = enrol_get_instances($course->id, true);
+        $manualinstance = reset($instances);
+
+        $manualplugin = enrol_get_plugin('manual');
+        $manualplugin->update_user_enrol($manualinstance, $user1->id, ENROL_USER_SUSPENDED);
+        $this->assertCount(2, enrol_get_course_users($course->id, false, [], [], [$group2->id]));
+        $this->assertCount(1, enrol_get_course_users($course->id, true, [], [], [$group2->id]));
     }
 
     /**
@@ -1361,5 +1451,78 @@ class core_enrollib_testcase extends advanced_testcase {
         $duration = enrol_calculate_duration($timestart, $timeend);
         $durationinday = $duration / DAYSECS;
         $this->assertEquals(9, $durationinday);
+    }
+
+    /**
+     * Test get_enrolled_with_capabilities_join cannotmatchanyrows attribute.
+     *
+     * @dataProvider get_enrolled_with_capabilities_join_cannotmatchanyrows_data()
+     * @param string $capability the tested capability
+     * @param bool $useprohibit if the capability must be assigned to prohibit
+     * @param int $expectedmatch expected cannotmatchanyrows value
+     * @param int $expectedcount expceted count value
+     */
+    public function test_get_enrolled_with_capabilities_join_cannotmatchanyrows(
+        string $capability,
+        bool $useprohibit,
+        int $expectedmatch,
+        int $expectedcount
+    ) {
+        global $DB, $CFG;
+
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course();
+        $context = context_course::instance($course->id);
+
+        $roleid = $CFG->defaultuserroleid;
+
+        // Override capability if necessary.
+        if ($useprohibit && $capability) {
+            assign_capability($capability, CAP_PROHIBIT, $roleid, $context);
+        }
+
+        // Check if we must enrol or not.
+        $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+
+        $join = get_enrolled_with_capabilities_join($context, '', $capability);
+
+        // Execute query.
+        $sql = "SELECT COUNT(DISTINCT u.id)
+                  FROM {user} u {$join->joins}
+                 WHERE {$join->wheres}";
+        $countrecords = $DB->count_records_sql($sql, $join->params);
+
+        // Validate cannotmatchanyrows.
+        $this->assertEquals($expectedmatch, $join->cannotmatchanyrows);
+        $this->assertEquals($expectedcount, $countrecords);
+    }
+
+    /**
+     * Data provider for test_get_enrolled_with_capabilities_join_cannotmatchanyrows
+     *
+     * @return @array of testing scenarios
+     */
+    public function get_enrolled_with_capabilities_join_cannotmatchanyrows_data() {
+        return [
+            'no prohibits, no capability' => [
+                'capability' => '',
+                'useprohibit' => false,
+                'expectedmatch' => 0,
+                'expectedcount' => 1,
+            ],
+            'no prohibits with capability' => [
+                'capability' => 'moodle/course:manageactivities',
+                'useprohibit' => false,
+                'expectedmatch' => 0,
+                'expectedcount' => 1,
+            ],
+            'prohibits with capability' => [
+                'capability' => 'moodle/course:manageactivities',
+                'useprohibit' => true,
+                'expectedmatch' => 1,
+                'expectedcount' => 0,
+            ],
+        ];
     }
 }

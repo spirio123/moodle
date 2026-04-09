@@ -234,18 +234,9 @@ class calendar_event {
             $data->eventtype = 'user';
         }
 
-        // Only user and user override type of events should record the user id.
-        // For all other event types we set userid to 0 as they are considered shared events.
+        // Default to the current user.
         if (empty($data->userid)) {
-            if ($this->allow_custom_userid($data)) {
-                $data->userid = $USER->id;
-            } else {
-                $data->userid = 0;
-            }
-        }
-
-        if (empty($data->courseid) && $data->eventtype == 'site') {
-            $data->courseid = SITEID;
+            $data->userid = $USER->id;
         }
 
         if (!empty($data->timeduration) && is_array($data->timeduration)) {
@@ -321,28 +312,6 @@ class calendar_event {
      */
     public function __isset($key) {
         return !empty($this->properties->{$key});
-    }
-
-    /**
-     * Decide whether user id should be stored on the event or not.
-     *
-     * Only user events and user overrides type of events should retain user id.
-     *
-     * @param stdClass $data The event data object.
-     * @return bool
-     */
-    protected function allow_custom_userid(stdClass $data): bool {
-        if ($data->eventtype === 'user') {
-            return true;
-        }
-
-        $isactionevent = !empty($data->type) && $data->type == CALENDAR_EVENT_TYPE_ACTION;
-        $isuseroverride = !empty($data->priority) && $data->priority == CALENDAR_EVENT_USER_OVERRIDE_PRIORITY;
-        if ($isactionevent && $isuseroverride) {
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -519,17 +488,48 @@ class calendar_event {
             }
 
             if ($usingeditor) {
+                switch ($this->properties->eventtype) {
+                    case 'user':
+                        $this->properties->courseid = 0;
+                        $this->properties->course = 0;
+                        $this->properties->groupid = 0;
+                        $this->properties->userid = $USER->id;
+                        break;
+                    case 'site':
+                        $this->properties->courseid = SITEID;
+                        $this->properties->course = SITEID;
+                        $this->properties->groupid = 0;
+                        $this->properties->userid = $USER->id;
+                        break;
+                    case 'course':
+                        $this->properties->groupid = 0;
+                        $this->properties->userid = $USER->id;
+                        break;
+                    case 'category':
+                        $this->properties->groupid = 0;
+                        $this->properties->category = 0;
+                        $this->properties->userid = $USER->id;
+                        break;
+                    case 'group':
+                        $this->properties->userid = $USER->id;
+                        break;
+                    default:
+                        // We should NEVER get here, but just incase we do lets fail gracefully.
+                        $usingeditor = false;
+                        break;
+                }
+
                 // If we are actually using the editor, we recalculate the context because some default values
                 // were set when calculate_context() was called from the constructor.
-                $this->properties->context = $this->calculate_context();
-                $this->editorcontext = $this->get_context();
+                if ($usingeditor) {
+                    $this->properties->context = $this->calculate_context();
+                    $this->editorcontext = $this->get_context();
+                }
 
                 $editor = $this->properties->description;
                 $this->properties->format = $this->properties->description['format'];
                 $this->properties->description = $this->properties->description['text'];
             }
-
-            $this->set_default_event_ids();
 
             // Insert the event into the database.
             $this->properties->id = $DB->insert_record('event', $this->properties);
@@ -675,8 +675,6 @@ class calendar_event {
                     $event->trigger();
                 }
             } else {
-                $this->set_default_event_ids();
-
                 $DB->update_record('event', $this->properties);
                 $event = self::load($this->properties->id);
                 $this->properties = $event->properties();
@@ -869,49 +867,6 @@ class calendar_event {
 
         // Finally return the properties.
         return $properties;
-    }
-
-    /**
-     * Set the default event ids.
-     */
-    protected function set_default_event_ids(): void {
-        global $USER;
-        $userid = (!empty($this->properties->userid)) ? $this->properties->userid : $USER->id;
-        switch ($this->properties->eventtype) {
-            case 'user':
-                $this->properties->courseid = 0;
-                $this->properties->course = 0;
-                $this->properties->groupid = 0;
-                $this->properties->userid = $userid;
-                break;
-            case 'site':
-                $this->properties->courseid = SITEID;
-                $this->properties->course = SITEID;
-                $this->properties->groupid = 0;
-                $this->properties->userid = 0;
-                break;
-            case 'course':
-                $this->properties->groupid = 0;
-                $this->properties->userid = 0;
-                break;
-            case 'category':
-                $this->properties->groupid = 0;
-                $this->properties->category = 0;
-                $this->properties->userid = 0;
-                break;
-            case 'group':
-                $this->properties->userid = 0;
-                break;
-        }
-
-        // Only user overrides type of events should store user's id.
-        $isactionevent = !empty($this->properties->type) && $this->properties->type == CALENDAR_EVENT_TYPE_ACTION;
-        $isuseroverride = $isactionevent && !empty($this->properties->priority) &&
-                $this->properties->priority == CALENDAR_EVENT_USER_OVERRIDE_PRIORITY;
-
-        if ($isuseroverride) {
-            $this->properties->userid = $userid;
-        }
     }
 
     /**
@@ -2216,6 +2171,24 @@ function calendar_set_filters(array $courseeventsfrom, $ignorefilters = false, s
 }
 
 /**
+ * Can current user manage a non user event in system context.
+ *
+ * @param calendar_event|stdClass $event event object
+ * @return boolean
+ */
+function calendar_can_manage_non_user_event_in_system($event) {
+    $sitecontext = \context_system::instance();
+    $isuserevent = $event->eventtype == 'user';
+    $canmanageentries = has_capability('moodle/calendar:manageentries', $sitecontext);
+    // If user has manageentries at site level and it's not user event, return true.
+    if ($canmanageentries && !$isuserevent) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Return the capability for viewing a calendar event.
  *
  * @param calendar_event $event event object
@@ -2229,10 +2202,7 @@ function calendar_view_event_allowed(calendar_event $event) {
         return true;
     }
 
-    // If a user can manage events at the site level they can see any event.
-    $sitecontext = \context_system::instance();
-    // If user has manageentries at site level, return true.
-    if (has_capability('moodle/calendar:manageentries', $sitecontext)) {
+    if (calendar_can_manage_non_user_event_in_system($event)) {
         return true;
     }
 
@@ -2288,11 +2258,7 @@ function calendar_view_event_allowed(calendar_event $event) {
 
         return can_access_course(get_course($event->courseid));
     } else if ($event->userid) {
-        if ($event->userid != $USER->id) {
-            // No-one can ever see another users events.
-            return false;
-        }
-        return true;
+        return calendar_can_manage_user_event($event);
     } else {
         throw new moodle_exception('unknown event type');
     }
@@ -2365,10 +2331,7 @@ function calendar_edit_event_allowed($event, $manualedit = false) {
         }
     }
 
-    $sitecontext = \context_system::instance();
-
-    // If user has manageentries at site level, return true.
-    if (has_capability('moodle/calendar:manageentries', $sitecontext)) {
+    if (calendar_can_manage_non_user_event_in_system($event)) {
         return true;
     }
 
@@ -2392,7 +2355,38 @@ function calendar_edit_event_allowed($event, $manualedit = false) {
         // If course is not set, but userid id set, it's a user event.
         return (has_capability('moodle/calendar:manageownentries', $event->context));
     } else if (!empty($event->userid)) {
-        return (has_capability('moodle/calendar:manageentries', $event->context));
+        return calendar_can_manage_user_event($event);
+    }
+
+    return false;
+}
+
+/**
+ * Can current user edit/delete/add an user event?
+ *
+ * @param calendar_event|stdClass $event event object
+ * @return bool
+ */
+function calendar_can_manage_user_event($event): bool {
+    global $USER;
+
+    if (!($event instanceof \calendar_event)) {
+        $event = new \calendar_event(clone($event));
+    }
+
+    $canmanage = has_capability('moodle/calendar:manageentries', $event->context);
+    $canmanageown = has_capability('moodle/calendar:manageownentries', $event->context);
+    $ismyevent = $event->userid == $USER->id;
+    $isadminevent = is_siteadmin($event->userid);
+
+    if ($canmanageown && $ismyevent) {
+        return true;
+    }
+
+    // In site context, user must have login and calendar:manageentries permissions
+    // ... to manage other user's events except admin users.
+    if ($canmanage && !$isadminevent) {
+        return true;
     }
 
     return false;
@@ -2441,9 +2435,7 @@ function calendar_get_default_courses($courseid = null, $fields = '*', $canmanag
         $prefixedfields = array_map(function($value) {
             return 'c.' . trim(strtolower($value));
         }, $fieldlist);
-        if (!in_array('c.visible', $prefixedfields) && !in_array('c.*', $prefixedfields)) {
-            $prefixedfields[] = 'c.visible';
-        }
+
         $courses = get_courses('all', 'c.shortname', implode(',', $prefixedfields));
     } else {
         $courses = enrol_get_users_courses($userid, true, $fields);
@@ -2706,10 +2698,7 @@ function calendar_add_event_allowed($event) {
         return false;
     }
 
-    $sitecontext = \context_system::instance();
-
-    // If user has manageentries at site level, always return true.
-    if (has_capability('moodle/calendar:manageentries', $sitecontext)) {
+    if (calendar_can_manage_non_user_event_in_system($event)) {
         return true;
     }
 
@@ -2728,10 +2717,7 @@ function calendar_add_event_allowed($event) {
                     (has_capability('moodle/calendar:managegroupentries', $event->context)
                         && groups_is_member($event->groupid)));
         case 'user':
-            if ($event->userid == $USER->id) {
-                return (has_capability('moodle/calendar:manageownentries', $event->context));
-            }
-        // There is intentionally no 'break'.
+            return calendar_can_manage_user_event($event);
         case 'site':
             return has_capability('moodle/calendar:manageentries', $event->context);
         default:
@@ -2820,9 +2806,7 @@ function calendar_add_subscription($sub) {
         // User events.
         $sub->courseid = 0;
     }
-
-    // Only subscriptions for user type should store user id, shared events (course,site...) should have userid set to 0.
-    $sub->userid = ($sub->eventtype == 'user') ? $USER->id : 0;
+    $sub->userid = $USER->id;
 
     // File subscriptions never update.
     if (empty($sub->url)) {
@@ -2951,7 +2935,7 @@ function calendar_add_icalendar_event($event, $unused = null, $subscriptionid, $
     // We should never do anything with an event without a subscription reference.
     $sub = calendar_get_subscription($subscriptionid);
     $eventrecord->subscriptionid = $subscriptionid;
-    $eventrecord->userid = ($sub->eventtype == 'user') ? $sub->userid : 0;
+    $eventrecord->userid = $sub->userid;
     $eventrecord->groupid = $sub->groupid;
     $eventrecord->courseid = $sub->courseid;
     $eventrecord->categoryid = $sub->categoryid;
@@ -3253,6 +3237,7 @@ function calendar_update_subscription($subscription) {
  * @return bool true if current user can edit the subscription else false
  */
 function calendar_can_edit_subscription($subscriptionorid) {
+    global $USER;
     if (is_array($subscriptionorid)) {
         $subscription = (object)$subscriptionorid;
     } else if (is_object($subscriptionorid)) {
@@ -3273,7 +3258,7 @@ function calendar_can_edit_subscription($subscriptionorid) {
     calendar_get_allowed_types($allowed, $courseid, null, $category);
     switch ($subscription->eventtype) {
         case 'user':
-            return $allowed->user;
+            return ($USER->id == $subscription->userid && $allowed->user);
         case 'course':
             if (isset($allowed->courses[$courseid])) {
                 return $allowed->courses[$courseid];
@@ -3310,8 +3295,6 @@ function calendar_get_calendar_context($subscription) {
     // Determine context based on calendar type.
     if ($subscription->eventtype === 'site') {
         $context = \context_course::instance(SITEID);
-    } else if ($subscription->eventtype === 'category') {
-        $context = \context_coursecat::instance($subscription->categoryid);
     } else if ($subscription->eventtype === 'group' || $subscription->eventtype === 'course') {
         $context = \context_course::instance($subscription->courseid);
     } else {

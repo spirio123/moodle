@@ -26,9 +26,7 @@ Feature: Add forum activities and discussions
     And I add a new discussion to "Test forum name" forum with:
       | Subject | Forum post 1 |
       | Message | This is the body |
-    And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am on the "Course 1" course page logged in as student1
     When I add a new discussion to "Test forum name" forum with:
       | Subject | Post with attachment |
       | Message | This is the body |
@@ -39,7 +37,7 @@ Feature: Add forum activities and discussions
       | Attachment | lib/tests/fixtures/upload_users.csv |
     Then I should see "Reply with attachment"
     And I should see "upload_users.csv"
-    And I follow "Test forum name"
+    And I am on the "Test forum name" "forum activity" page
     And I follow "Post with attachment"
     And I should see "empty.txt"
     And I follow "Edit"
